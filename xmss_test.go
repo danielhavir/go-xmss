@@ -14,7 +14,7 @@ func TestXMSS(t *testing.T) {
 
 	msg := make([]byte, 32)
 	rand.Read(msg)
-	m := make([]byte, int(params.signBytes)+len(msg))
+	m := make([]byte, int(params.SignBytes)+len(msg))
 
 	initIndex := make([]byte, params.indexBytes)
 	copy(initIndex, (*prv)[:params.indexBytes])

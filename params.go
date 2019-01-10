@@ -17,7 +17,7 @@ type Params struct {
 	indexBytes  uint32
 	prvBytes    uint32
 	pubBytes    uint32
-	signBytes   uint32
+	SignBytes   uint32
 }
 
 func initParams(n, w, h int) *Params {
@@ -46,7 +46,7 @@ func initParams(n, w, h int) *Params {
 		indexBytes:  indexBytes,
 		prvBytes:    prvBytes,
 		pubBytes:    pubBytes,
-		signBytes:   signBytes,
+		SignBytes:   signBytes,
 	}
 }
 
