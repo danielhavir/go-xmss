@@ -16,7 +16,7 @@ func TestXMSS(t *testing.T) {
 
 	initIndex := make([]byte, indexBytes)
 	copy(initIndex, (*prv)[:indexBytes])
-	signature := *(*prv).Sign(msg)
+	signature := *prv.Sign(msg)
 	afterIndex := (*prv)[:indexBytes]
 
 	if !Verify(m, signature, *pub) {

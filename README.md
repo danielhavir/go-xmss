@@ -11,6 +11,11 @@ This project implements a single scenario with the following parameters (see sec
 * d: 1
 * index bytes: 4
 
+This code has no dependencies and is compatible with the official C implementation assuming the appropriate settings (see above) are presumed.
+
+### Install
+* `go get https://github.com/danielhavir/go-xmss`
+
 ### Tests
 * WOTS+ - ✅
 * XMSS - ✅
@@ -29,7 +34,7 @@ func main() {
 
     msg := ...
 
-    sig := (*prv).Sign(msg)
+    sig := prv.Sign(msg)
 
     m := make([]byte, int(xmss.SignBytes)+len(msg))
 
