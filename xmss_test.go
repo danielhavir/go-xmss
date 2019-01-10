@@ -8,25 +8,27 @@ import (
 )
 
 func TestXMSS(t *testing.T) {
-	prv, pub := GenerateXMSSKeypair()
+	params := SHA2_16_256
+
+	prv, pub := GenerateXMSSKeypair(params)
 
 	msg := make([]byte, 32)
 	rand.Read(msg)
-	m := make([]byte, int(signBytes)+len(msg))
+	m := make([]byte, int(params.signBytes)+len(msg))
 
-	initIndex := make([]byte, indexBytes)
-	copy(initIndex, (*prv)[:indexBytes])
-	signature := *prv.Sign(msg)
-	afterIndex := (*prv)[:indexBytes]
+	initIndex := make([]byte, params.indexBytes)
+	copy(initIndex, (*prv)[:params.indexBytes])
+	signature := *prv.Sign(params, msg)
+	afterIndex := (*prv)[:params.indexBytes]
 
-	if !Verify(m, signature, *pub) {
+	if !Verify(params, m, signature, *pub) {
 		t.Error("XMSS test failed. Verification does not match")
 	} else {
 		fmt.Println("XMSS signature matches.")
 	}
 
 	signature[len(signature)-1] ^= 1
-	if Verify(m, signature, *pub) {
+	if Verify(params, m, signature, *pub) {
 		t.Error("XMSS test failed. Flipped bit did not invalidate")
 	} else {
 		fmt.Println("Flipping a bit correctly invalides the XMSS signature.")

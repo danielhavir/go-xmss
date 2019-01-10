@@ -17,20 +17,22 @@ func (a *address) initRandom() {
 }
 
 func TestWOTS(t *testing.T) {
-	seed := make([]byte, n)
+	// For WOTS+ tests, the parameter set doesn't matter since n, w and wlen are identical
+	params := SHA2_10_256
+	seed := make([]byte, params.n)
 	rand.Read(seed)
-	pubSeed := make([]byte, n)
+	pubSeed := make([]byte, params.n)
 	rand.Read(pubSeed)
-	m := make([]byte, n)
+	m := make([]byte, params.n)
 	rand.Read(m)
 
 	var a address
 	a.initRandom()
 
-	prv := *generatePrivate(seed)
-	pub1 := *prv.generatePublic(pubSeed, &a)
-	sign := *prv.sign(m, pubSeed, &a)
-	pub2 := *sign.getPublic(m, pubSeed, &a)
+	prv := *generatePrivate(params, seed)
+	pub1 := *prv.generatePublic(params, pubSeed, &a)
+	sign := *prv.sign(params, m, pubSeed, &a)
+	pub2 := *sign.getPublic(params, m, pubSeed, &a)
 
 	if !bytes.Equal(pub1, pub2) {
 		t.Error("WOTS+ test failed. Public keys do not match")

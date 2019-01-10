@@ -5,30 +5,15 @@ import (
 	"crypto/rand"
 )
 
-const (
-	indexBytes = 4
-	fullHeight = 16
-	d          = 1
-)
-
-var (
-	treeHeight = uint32(fullHeight / d)
-	prvBytes   = uint32(indexBytes + 4*n)
-	pubBytes   = uint32(2 * n)
-	signBytes  = uint32(indexBytes + n + d*wotsSignLen + fullHeight*n)
-)
-
-// SignBytes denotes the length of the signature
-var SignBytes = signBytes
-
 // Section 4.1.5. Algorithm 8: ltree
 // Computes a leaf node from a WOTS public key using an L-tree.
 // Note that this destroys the used WOTS public key.
-func lTree(leaf, seed []byte, wotsPub publicWOTS, a *address) {
-	l := wlen
+func lTree(params *Params, leaf, seed []byte, wotsPub publicWOTS, a *address) {
+	l := params.wlen
 	var parentNodes uint32
 	height := uint32(0)
 	var idxIn, idxOut uint32
+	n := uint32(params.n)
 
 	a.setTreeHeight(height)
 
@@ -39,7 +24,7 @@ func lTree(leaf, seed []byte, wotsPub publicWOTS, a *address) {
 			idxOut = i * n
 			idxIn = i * 2 * n
 			// Hashes the nodes at (i*2)*params->n and (i*2)*params->n + 1
-			hashH(wotsPub[idxOut:idxOut+n], seed, wotsPub[idxIn:idxIn+2*n], a)
+			hashH(params, wotsPub[idxOut:idxOut+n], seed, wotsPub[idxIn:idxIn+2*n], a)
 		}
 
 		// If the row contained an odd number of nodes, the last node was not
@@ -61,7 +46,8 @@ func lTree(leaf, seed []byte, wotsPub publicWOTS, a *address) {
 
 // Section 4.1.10. Algorithm 13: XMSS_rootFromSig - Compute a root node from a tree signature
 // Computes a root node given a leaf and an auth path
-func computeRoot(root, leaf, authPath, pubSeed []byte, leafIdx uint32, a *address) {
+func computeRoot(params *Params, root, leaf, authPath, pubSeed []byte, leafIdx uint32, a *address) {
+	n := params.n
 	buf := make([]byte, 2*n)
 
 	// If leafidx is odd (last bit = 1), current path element is a right child
@@ -75,62 +61,63 @@ func computeRoot(root, leaf, authPath, pubSeed []byte, leafIdx uint32, a *addres
 	}
 	authPath = authPath[n:]
 
-	for i := uint32(0); i < treeHeight-1; i++ {
+	for i := uint32(0); i < params.treeHeight-1; i++ {
 		a.setTreeHeight(i)
 		leafIdx >>= 1
 		a.setTreeIndex(leafIdx)
 
 		// Pick the right or left neighbor, depending on parity of the node.
 		if leafIdx&1 == 1 {
-			hashH(buf[n:], pubSeed, buf, a)
+			hashH(params, buf[n:], pubSeed, buf, a)
 			copy(buf[:n], authPath[:n])
 		} else {
-			hashH(buf[:n], pubSeed, buf, a)
+			hashH(params, buf[:n], pubSeed, buf, a)
 			copy(buf[n:], authPath[:n])
 		}
 
 		authPath = authPath[n:]
 	}
 
-	a.setTreeHeight(treeHeight - 1)
+	a.setTreeHeight(params.treeHeight - 1)
 	leafIdx >>= 1
 	a.setTreeIndex(leafIdx)
-	hashH(root, pubSeed, buf, a)
+	hashH(params, root, pubSeed, buf, a)
 }
 
 // Used for pseudo-random key generation.
 // Generates the seed for the WOTS key pair at address a
 // Takes n-byte prvSeed and returns n-byte seed using 32 byte address a
-func getSeed(seed, prvSeed []byte, a *address) {
+func getSeed(params *Params, seed, prvSeed []byte, a *address) {
 	a.setChainAddr(0)
 	a.setHashAddr(0)
 	a.setKeyAndMask(0)
 
 	bytes := a.toByte()
-	hashPRF(seed, prvSeed, bytes)
+	hashPRF(params, seed, prvSeed, bytes)
 }
 
 // Computes the leaf at a given address. First generates the WOTS key pair,
 // then computes leaf using lTree. As this happens position independent, we
 // only require that address encodes the right ltree-address.
-func generateLeafWOTS(leaf, prvSeed, pubSeed []byte, ltreeA, otsA *address) {
-	seed := make([]byte, n)
+func generateLeafWOTS(params *Params, leaf, prvSeed, pubSeed []byte, ltreeA, otsA *address) {
+	seed := make([]byte, params.n)
 
-	getSeed(seed, prvSeed, otsA)
-	prv := *generatePrivate(seed)
-	pub := *prv.generatePublic(pubSeed, otsA)
+	getSeed(params, seed, prvSeed, otsA)
+	prv := *generatePrivate(params, seed)
+	pub := *prv.generatePublic(params, pubSeed, otsA)
 
-	lTree(leaf, pubSeed, pub, ltreeA)
+	lTree(params, leaf, pubSeed, pub, ltreeA)
 }
 
 // Section 4.1.6. Algorithm 9: treeHash
 // For a given leaf index, computes the authentication path and the resulting
 // root node using Merkle's TreeHash algorithm.
 // Expects the layer and tree parts of subtree_addr to be set.
-func treehash(root, authPath, prvSeed, pubSeed []byte, leafIdx uint32, subtreeA address) {
-	stack := make([]byte, (treeHeight+1)*n)
-	heights := make([]uint32, treeHeight+1)
+func treehash(params *Params, root, authPath, prvSeed, pubSeed []byte, leafIdx uint32, subtreeA address) {
+	stack := make([]byte, int(params.treeHeight+1)*params.n)
+	heights := make([]uint32, params.treeHeight+1)
 	offset := uint32(0)
+	n := uint32(params.n)
 
 	var otsA, ltreeA, nodeA address
 	var treeIdx uint32
@@ -143,11 +130,11 @@ func treehash(root, authPath, prvSeed, pubSeed []byte, leafIdx uint32, subtreeA 
 	ltreeA.setType(xmssAddrTypeLTREE)
 	nodeA.setType(xmssAddrTypeHASHTREE)
 
-	for i := uint32(0); i < uint32(1<<treeHeight); i++ {
+	for i := uint32(0); i < uint32(1<<params.treeHeight); i++ {
 		// Add the next leaf node to the stack.
 		ltreeA.setLTreeAddr(i)
 		otsA.setOTSAddr(i)
-		generateLeafWOTS(stack[offset*n:offset*n+n], prvSeed, pubSeed, &ltreeA, &otsA)
+		generateLeafWOTS(params, stack[offset*n:offset*n+n], prvSeed, pubSeed, &ltreeA, &otsA)
 		heights[offset] = 0
 
 		// If this is a node we need for the auth path..
@@ -168,7 +155,7 @@ func treehash(root, authPath, prvSeed, pubSeed []byte, leafIdx uint32, subtreeA 
 			nodeA.setTreeHeight(heights[offset-1])
 			nodeA.setTreeIndex(treeIdx)
 			stackIdx := (offset - 2) * n
-			hashH(stack[stackIdx:stackIdx+n], pubSeed, stack[stackIdx:stackIdx+2*n], &nodeA)
+			hashH(params, stack[stackIdx:stackIdx+n], pubSeed, stack[stackIdx:stackIdx+2*n], &nodeA)
 
 			offset--
 			// Note that the top-most node is now one layer higher
@@ -198,27 +185,28 @@ type SignatureXMSS []byte
 // Generates a XMSS key pair for a given parameter set.
 // Format private: [(32bit) index || prvSeed || seed || pubSeed || root]
 // Format public: [root || pubSeed]
-func GenerateXMSSKeypair() (*PrivateXMSS, *PublicXMSS) {
+func GenerateXMSSKeypair(params *Params) (*PrivateXMSS, *PublicXMSS) {
 	var prv PrivateXMSS
 	var pub PublicXMSS
-	prv = make([]byte, prvBytes)
-	pub = make([]byte, pubBytes)
+	prv = make([]byte, params.prvBytes)
+	pub = make([]byte, params.pubBytes)
+	n := uint32(params.n)
 
 	// We do not need the auth path in key generation, but it simplifies the
 	// code to have just one treehash routine that computes both root and path
 	// in one function
-	authPath := make([]byte, treeHeight*n)
+	authPath := make([]byte, params.treeHeight*n)
 	var topTreeA address
 
-	topTreeA.setLayerAddr(d - 1)
-	copy(prv[:indexBytes], make([]byte, indexBytes))
+	topTreeA.setLayerAddr(uint32(params.d) - 1)
+	copy(prv[:params.indexBytes], make([]byte, params.indexBytes))
 	// Initialize prvSeed, prfSeed and pubSeed
-	rand.Read(prv[indexBytes : indexBytes+3*n])
-	copy(pub[n:2*n], prv[indexBytes+2*n:indexBytes+3*n])
+	rand.Read(prv[params.indexBytes : params.indexBytes+3*n])
+	copy(pub[n:2*n], prv[params.indexBytes+2*n:params.indexBytes+3*n])
 
 	// Compute root node of the top-most subtree
-	treehash(pub, authPath, prv[indexBytes:indexBytes+n], pub[n:2*n], 0, topTreeA)
-	copy(prv[indexBytes+3*n:], pub[:n])
+	treehash(params, pub, authPath, prv[params.indexBytes:params.indexBytes+n], pub[n:2*n], 0, topTreeA)
+	copy(prv[params.indexBytes+3*n:], pub[:n])
 
 	return &prv, &pub
 }
@@ -226,7 +214,8 @@ func GenerateXMSSKeypair() (*PrivateXMSS, *PublicXMSS) {
 // Verify Section 4.1.10. Algorithm 14: XMSS_verify - Verify an XMSS signature using the corresponding XMSS public key and a message
 // Verifies a given message signature pair under a given public key.
 // Note that this assumes a pk without an OID, i.e. [root || pubSeed]
-func Verify(m, signature []byte, pub PublicXMSS) (match bool) {
+func Verify(params *Params, m, signature []byte, pub PublicXMSS) (match bool) {
+	n := uint32(params.n)
 	pubRoot := pub[:n]
 	pubSeed := pub[n:]
 	var wotsSign signatureWOTS
@@ -234,24 +223,24 @@ func Verify(m, signature []byte, pub PublicXMSS) (match bool) {
 	leaf := make([]byte, n)
 	root := make([]byte, n)
 	msgHash := make([]byte, n)
-	msgLen := len(signature) - int(signBytes)
+	msgLen := len(signature) - int(params.signBytes)
 
 	var otsA, ltreeA, nodeA address
 	otsA.setType(xmssAddrTypeOTS)
 	ltreeA.setType(xmssAddrTypeLTREE)
 	nodeA.setType(xmssAddrTypeHASHTREE)
 
-	idx := fromByte(signature[:indexBytes], indexBytes)
+	idx := fromByte(signature[:params.indexBytes], int(params.indexBytes))
 
-	copy(m[signBytes:], signature[signBytes:])
-	hashMsg(msgHash, signature[indexBytes:indexBytes+n], pubRoot, m[signBytes-4*n:], idx)
+	copy(m[params.signBytes:], signature[params.signBytes:])
+	hashMsg(params, msgHash, signature[params.indexBytes:params.indexBytes+n], pubRoot, m[params.signBytes-4*n:], idx)
 	copy(root, msgHash)
 
-	signature = signature[indexBytes+n:]
+	signature = signature[params.indexBytes+n:]
 
-	for i := uint32(0); i < d; i++ {
-		idxLeaf := (uint32(idx) & ((1 << treeHeight) - 1))
-		idx = idx >> treeHeight
+	for i := uint32(0); i < uint32(params.d); i++ {
+		idxLeaf := (uint32(idx) & ((1 << params.treeHeight) - 1))
+		idx = idx >> params.treeHeight
 
 		otsA.setLayerAddr(i)
 		ltreeA.setLayerAddr(i)
@@ -264,28 +253,28 @@ func Verify(m, signature []byte, pub PublicXMSS) (match bool) {
 		// The WOTS public key is only correct if the signature was correct
 		otsA.setOTSAddr(idxLeaf)
 
-		wotsSign = signature[:wotsSignLen]
+		wotsSign = signature[:params.wotsSignLen]
 		// Initially, root = mhash, but on subsequent iterations it is the root
 		// of the subtree below the currently processed subtree.
-		wotsPub = *wotsSign.getPublic(root, pubSeed, &otsA)
-		signature = signature[wotsSignLen:]
+		wotsPub = *wotsSign.getPublic(params, root, pubSeed, &otsA)
+		signature = signature[params.wotsSignLen:]
 
 		// Compute the leaf node using the WOTS public key
 		ltreeA.setLTreeAddr(idxLeaf)
-		lTree(leaf, pubSeed, wotsPub, &ltreeA)
+		lTree(params, leaf, pubSeed, wotsPub, &ltreeA)
 
 		// Compute the root node of this subtree
-		computeRoot(root, leaf, signature[:treeHeight*n], pubSeed, idxLeaf, &nodeA)
-		signature = signature[treeHeight*n:]
+		computeRoot(params, root, leaf, signature[:params.treeHeight*n], pubSeed, idxLeaf, &nodeA)
+		signature = signature[params.treeHeight*n:]
 	}
 
 	// Check if the root node equals the root node in the public key
 	if !bytes.Equal(root, pubRoot) {
 		// Zero the message
-		copy(m[signBytes:], make([]byte, msgLen))
+		copy(m[params.signBytes:], make([]byte, msgLen))
 		match = false
 	} else {
-		copy(m[signBytes:], signature)
+		copy(m[params.signBytes:], signature)
 		match = true
 	}
 	return
@@ -294,14 +283,15 @@ func Verify(m, signature []byte, pub PublicXMSS) (match bool) {
 // Sign Section 4.1.9. Algorithm 12: XMSS_sign - Generate an XMSS signature and update the XMSS private key
 // Signs a message. Returns an array containing the signature followed by the
 // message and an updated secret key.
-func (prv PrivateXMSS) Sign(m []byte) *SignatureXMSS {
+func (prv PrivateXMSS) Sign(params *Params, m []byte) *SignatureXMSS {
 	var signature SignatureXMSS
-	signature = make([]byte, int(signBytes)+len(m))
+	signature = make([]byte, int(params.signBytes)+len(m))
 
-	prvSeed := prv[indexBytes : indexBytes+n]
-	prfSeed := prv[indexBytes+n : indexBytes+2*n]
-	pubSeed := prv[indexBytes+2*n : indexBytes+3*n]
-	pubRoot := prv[indexBytes+3*n : indexBytes+4*n]
+	n := uint32(params.n)
+	prvSeed := prv[params.indexBytes : params.indexBytes+n]
+	prfSeed := prv[params.indexBytes+n : params.indexBytes+2*n]
+	pubSeed := prv[params.indexBytes+2*n : params.indexBytes+3*n]
+	pubRoot := prv[params.indexBytes+3*n : params.indexBytes+4*n]
 
 	root := make([]byte, n)
 	msgHash := make([]byte, n)
@@ -313,39 +303,39 @@ func (prv PrivateXMSS) Sign(m []byte) *SignatureXMSS {
 
 	// Already put the message in the right place, to make it easier to prepend
 	// things when computing the hash over the message
-	copy(signature[signBytes:], m)
+	copy(signature[params.signBytes:], m)
 
-	idx := fromByte(prv[:indexBytes], indexBytes)
-	copy(signature[:indexBytes], prv[:indexBytes])
+	idx := fromByte(prv[:params.indexBytes], int(params.indexBytes))
+	copy(signature[:params.indexBytes], prv[:params.indexBytes])
 
 	// Increment the index in the private key
-	copy(prv[:indexBytes], toByte(int(idx+1), indexBytes))
+	copy(prv[:params.indexBytes], toByte(int(idx+1), int(params.indexBytes)))
 
 	// Compute the digest randomization value
 	idxBytes := toByte(int(idx), 32)
-	hashPRF(signature[indexBytes:indexBytes+n], prfSeed, idxBytes)
+	hashPRF(params, signature[params.indexBytes:params.indexBytes+n], prfSeed, idxBytes)
 
 	// Compute the message hash
-	hashMsg(msgHash, signature[indexBytes:indexBytes+n], pubRoot, signature[signBytes-4*n:], idx)
+	hashMsg(params, msgHash, signature[params.indexBytes:params.indexBytes+n], pubRoot, signature[params.signBytes-4*n:], idx)
 	copy(root, msgHash)
 
-	for i := uint32(0); i < d; i++ {
-		idxLeaf = uint32(idx) & ((1 << treeHeight) - 1)
-		idx = idx >> treeHeight
+	for i := uint32(0); i < uint32(params.d); i++ {
+		idxLeaf = uint32(idx) & ((1 << params.treeHeight) - 1)
+		idx = idx >> params.treeHeight
 
 		otsA.setLayerAddr(i)
 		otsA.setTreeAddr(idx)
 		otsA.setOTSAddr(idxLeaf)
 
 		// Get a seed for the WOTS keypair
-		getSeed(otsSeed, prvSeed, &otsA)
+		getSeed(params, otsSeed, prvSeed, &otsA)
 
-		wotsPrv := *generatePrivate(otsSeed)
-		wotsSign := *wotsPrv.sign(root, pubSeed, &otsA)
-		copy(signature[indexBytes+n:indexBytes+n+wotsSignLen], wotsSign)
+		wotsPrv := *generatePrivate(params, otsSeed)
+		wotsSign := *wotsPrv.sign(params, root, pubSeed, &otsA)
+		copy(signature[params.indexBytes+n:params.indexBytes+n+params.wotsSignLen], wotsSign)
 
 		// Compute the authentication path for the used WOTS leaf
-		treehash(root, signature[indexBytes+n+wotsSignLen:indexBytes+n+wotsSignLen+treeHeight*n], prvSeed, pubSeed, idxLeaf, otsA)
+		treehash(params, root, signature[params.indexBytes+n+params.wotsSignLen:params.indexBytes+n+params.wotsSignLen+params.treeHeight*n], prvSeed, pubSeed, idxLeaf, otsA)
 	}
 
 	return &signature

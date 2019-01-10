@@ -9,9 +9,9 @@ import (
 
 // PRF: SHA2-256(toByte(3, 32) || KEY || M)
 // Message must be exactly 32 bytes
-func hashPRF(out, key, m []byte) {
+func hashPRF(params *Params, out, key, m []byte) {
 	h := sha256.New()
-	h.Write(toByte(3, n))
+	h.Write(toByte(3, params.n))
 	h.Write(key)
 	h.Write(m)
 	copy(out, h.Sum(nil))
@@ -20,12 +20,12 @@ func hashPRF(out, key, m []byte) {
 // H_msg: SHA2-256(toByte(2, 32) || KEY || M)
 // Computes the message hash using R, the public root, the index of the leaf
 // node, and the message.
-func hashMsg(out, R, root, mPlus []byte, idx uint64) {
+func hashMsg(params *Params, out, R, root, mPlus []byte, idx uint64) {
 	h := sha256.New()
-	copy(mPlus[:n], toByte(2, n))
-	copy(mPlus[n:2*n], R)
-	copy(mPlus[2*n:3*n], root)
-	copy(mPlus[3*n:4*n], toByte(int(idx), n))
+	copy(mPlus[:params.n], toByte(2, params.n))
+	copy(mPlus[params.n:2*params.n], R)
+	copy(mPlus[2*params.n:3*params.n], root)
+	copy(mPlus[3*params.n:4*params.n], toByte(int(idx), params.n))
 	h.Write(mPlus)
 	copy(out, h.Sum(nil))
 }
@@ -34,43 +34,43 @@ func hashMsg(out, R, root, mPlus []byte, idx uint64) {
 // A cryptographic hash function H.  H accepts n-byte keys and byte
 // strings of length 2n and returns an n-byte string.
 // Includes: Algorithm 7: RAND_HASH
-func hashH(out, seed, m []byte, a *address) {
+func hashH(params *Params, out, seed, m []byte, a *address) {
 	h := sha256.New()
-	h.Write(toByte(1, n))
+	h.Write(toByte(1, params.n))
 
 	// Generate the n-byte key
 	a.setKeyAndMask(0)
-	buf := make([]byte, 3*n)
-	hashPRF(buf[:n], seed, a.toByte())
+	buf := make([]byte, 3*params.n)
+	hashPRF(params, buf[:params.n], seed, a.toByte())
 
 	// Generate the 2n-byte mask
 	a.setKeyAndMask(1)
-	bitmask := make([]byte, 2*n)
-	hashPRF(bitmask[:n], seed, a.toByte())
+	bitmask := make([]byte, 2*params.n)
+	hashPRF(params, bitmask[:params.n], seed, a.toByte())
 	a.setKeyAndMask(2)
-	hashPRF(bitmask[n:], seed, a.toByte())
+	hashPRF(params, bitmask[params.n:], seed, a.toByte())
 
-	xor(buf[n:], m, bitmask)
+	xor(buf[params.n:], m, bitmask)
 	h.Write(buf)
 
 	copy(out, h.Sum(nil))
 }
 
 // F: SHA2-256(toByte(0, 32) || KEY || M)
-func hashF(out, seed, m []byte, a *address) {
+func hashF(params *Params, out, seed, m []byte, a *address) {
 	h := sha256.New()
-	h.Write(make([]byte, n))
+	h.Write(make([]byte, params.n))
 
 	// Generate the n-byte key
 	a.setKeyAndMask(0)
-	buf := make([]byte, 2*n)
-	hashPRF(buf[:n], seed, a.toByte())
+	buf := make([]byte, 2*params.n)
+	hashPRF(params, buf[:params.n], seed, a.toByte())
 
 	// Generate the n-byte mask
 	a.setKeyAndMask(1)
-	bitmask := make([]byte, n)
-	hashPRF(bitmask, seed, a.toByte())
-	xor(buf[n:], m, bitmask)
+	bitmask := make([]byte, params.n)
+	hashPRF(params, bitmask, seed, a.toByte())
+	xor(buf[params.n:], m, bitmask)
 	h.Write(buf)
 
 	copy(out, h.Sum(nil))

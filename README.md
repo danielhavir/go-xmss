@@ -1,20 +1,17 @@
 # XMSS: eXtended Merkle Signature Scheme
 
-### XMSS Parameters
-This project implements a single scenario with the following parameters (see section 5.3. for reference):
-* Hash function: SHA-256
-* n: 32
-* w: 16
-* h: 16
-* len: 67
-* Full height: 16
-* d: 1
-* index bytes: 4
+This project implements [RFC8391](https://tools.ietf.org/html/rfc8391), the eXtended Merkle Signature Scheme (XMSS), a hash-based digital signature system that can so far withstand known attacks using quantum computers. This repostiory contains code implementing the **single-tree** scheme, namely the following parameter sets (see [section 5.3.](https://tools.ietf.org/html/rfc8391#section-5.3) for reference):
+
+| Name              | Functions |  n |  w | len |  h |
+|-------------------|-----------|----|----|-----|----|
+| SHA2_10_256       | SHA2-256  | 32 | 16 |  67 | 10 |
+| SHA2_16_256       | SHA2-256  | 32 | 16 |  67 | 16 |
+| SHA2_20_256       | SHA2-256  | 32 | 16 |  67 | 20 |
 
 This code has no dependencies and is compatible with the official C implementation assuming the appropriate settings (see above) are presumed.
 
 ### Install
-* `go get https://github.com/danielhavir/go-xmss`
+* Run `go get https://github.com/danielhavir/go-xmss`
 
 ### Tests
 * WOTS+ - ✅
@@ -30,15 +27,17 @@ import (
 )
 
 func main() {
-    prv, pub := xmss.GenerateXMSSKeypar()
+    params := xmss.SHA2_16_256
+    
+    prv, pub := xmss.GenerateXMSSKeypar(params)
 
     msg := ...
 
-    sig := prv.Sign(msg)
+    sig := prv.Sign(params, msg)
 
-    m := make([]byte, int(xmss.SignBytes)+len(msg))
+    m := make([]byte, int(params.signBytes)+len(msg))
 
-    if xmss.Verify(m, *sig, *pub) {
+    if xmss.Verify(params, m, *sig, *pub) {
         fmt.Println("Signature matches.")
     } else {
         fmt.Println("Verification does not match.")
@@ -49,4 +48,4 @@ func main() {
 
 ## References
 * XMSS: eXtended Merkle Signature Scheme [RFC8391](https://tools.ietf.org/html/rfc8391)
-* [Official refence C implementation](https://github.com/joostrijneveld/xmss-reference)
+* [Official reference C implementation](https://github.com/joostrijneveld/xmss-reference)
