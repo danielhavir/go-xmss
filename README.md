@@ -1,4 +1,4 @@
-![Dependency Status](https://david-dm.org/dwyl/esta.svg)
+![Dependency Status](https://danielhavir.github.io/badges/04f9fc479ab2f30ebef5ee393801dd82/dependencies_none.svg) ![Tests Passing](https://danielhavir.github.io/badges/7b10a2ec99832a186dac8cc279a45d3e/tests_passing.svg)
 
 # XMSS: eXtended Merkle Signature Scheme
 
@@ -14,10 +14,6 @@ This code has no dependencies and is compatible with the official C implementati
 
 ### Install
 * Run `go get https://github.com/danielhavir/go-xmss`
-
-### Tests
-* WOTS+ - ✅
-* XMSS - ✅
 
 ## Example
 ```go
@@ -37,7 +33,7 @@ func main() {
 
     sig := prv.Sign(params, msg)
 
-    m := make([]byte, int(params.signBytes)+len(msg))
+    m := make([]byte, params.SignBytes()+len(msg))
 
     if xmss.Verify(params, m, *sig, *pub) {
         fmt.Println("Signature matches.")

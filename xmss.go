@@ -23,7 +23,6 @@ func lTree(params *Params, leaf, seed []byte, wotsPub publicWOTS, a *address) {
 			a.setTreeIndex(i)
 			idxOut = i * n
 			idxIn = i * 2 * n
-			// Hashes the nodes at (i*2)*params->n and (i*2)*params->n + 1
 			hashH(params, wotsPub[idxOut:idxOut+n], seed, wotsPub[idxIn:idxIn+2*n], a)
 		}
 
@@ -223,7 +222,7 @@ func Verify(params *Params, m, signature []byte, pub PublicXMSS) (match bool) {
 	leaf := make([]byte, n)
 	root := make([]byte, n)
 	msgHash := make([]byte, n)
-	msgLen := len(signature) - int(params.SignBytes)
+	msgLen := len(signature) - int(params.signBytes)
 
 	var otsA, ltreeA, nodeA address
 	otsA.setType(xmssAddrTypeOTS)
@@ -232,8 +231,8 @@ func Verify(params *Params, m, signature []byte, pub PublicXMSS) (match bool) {
 
 	idx := fromByte(signature[:params.indexBytes], int(params.indexBytes))
 
-	copy(m[params.SignBytes:], signature[params.SignBytes:])
-	hashMsg(params, msgHash, signature[params.indexBytes:params.indexBytes+n], pubRoot, m[params.SignBytes-4*n:], idx)
+	copy(m[params.signBytes:], signature[params.signBytes:])
+	hashMsg(params, msgHash, signature[params.indexBytes:params.indexBytes+n], pubRoot, m[params.signBytes-4*n:], idx)
 	copy(root, msgHash)
 
 	signature = signature[params.indexBytes+n:]
@@ -271,10 +270,10 @@ func Verify(params *Params, m, signature []byte, pub PublicXMSS) (match bool) {
 	// Check if the root node equals the root node in the public key
 	if !bytes.Equal(root, pubRoot) {
 		// Zero the message
-		copy(m[params.SignBytes:], make([]byte, msgLen))
+		copy(m[params.signBytes:], make([]byte, msgLen))
 		match = false
 	} else {
-		copy(m[params.SignBytes:], signature)
+		copy(m[params.signBytes:], signature)
 		match = true
 	}
 	return
@@ -285,7 +284,7 @@ func Verify(params *Params, m, signature []byte, pub PublicXMSS) (match bool) {
 // message and an updated secret key.
 func (prv PrivateXMSS) Sign(params *Params, m []byte) *SignatureXMSS {
 	var signature SignatureXMSS
-	signature = make([]byte, int(params.SignBytes)+len(m))
+	signature = make([]byte, int(params.signBytes)+len(m))
 
 	n := uint32(params.n)
 	prvSeed := prv[params.indexBytes : params.indexBytes+n]
@@ -303,7 +302,7 @@ func (prv PrivateXMSS) Sign(params *Params, m []byte) *SignatureXMSS {
 
 	// Already put the message in the right place, to make it easier to prepend
 	// things when computing the hash over the message
-	copy(signature[params.SignBytes:], m)
+	copy(signature[params.signBytes:], m)
 
 	idx := fromByte(prv[:params.indexBytes], int(params.indexBytes))
 	copy(signature[:params.indexBytes], prv[:params.indexBytes])
@@ -316,7 +315,7 @@ func (prv PrivateXMSS) Sign(params *Params, m []byte) *SignatureXMSS {
 	hashPRF(params, signature[params.indexBytes:params.indexBytes+n], prfSeed, idxBytes)
 
 	// Compute the message hash
-	hashMsg(params, msgHash, signature[params.indexBytes:params.indexBytes+n], pubRoot, signature[params.SignBytes-4*n:], idx)
+	hashMsg(params, msgHash, signature[params.indexBytes:params.indexBytes+n], pubRoot, signature[params.signBytes-4*n:], idx)
 	copy(root, msgHash)
 
 	for i := uint32(0); i < uint32(params.d); i++ {

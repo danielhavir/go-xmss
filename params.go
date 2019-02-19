@@ -17,7 +17,12 @@ type Params struct {
 	indexBytes  uint32
 	prvBytes    uint32
 	pubBytes    uint32
-	SignBytes   uint32
+	signBytes   uint32
+}
+
+// SignBytes the length of the signature based on a given parameter set
+func (params *Params) SignBytes() int {
+	return int(params.signBytes)
 }
 
 func initParams(n, w, h int) *Params {
@@ -46,7 +51,7 @@ func initParams(n, w, h int) *Params {
 		indexBytes:  indexBytes,
 		prvBytes:    prvBytes,
 		pubBytes:    pubBytes,
-		SignBytes:   signBytes,
+		signBytes:   signBytes,
 	}
 }
 

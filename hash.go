@@ -1,11 +1,6 @@
 package xmss
 
-import (
-	"crypto/sha256"
-)
-
-// SHA2 does not provide a keyed-mode itself.  To implement the keyed
-// hash functions, the following is used for SHA2 with n = 32
+import "crypto/sha256"
 
 // PRF: SHA2-256(toByte(3, 32) || KEY || M)
 // Message must be exactly 32 bytes

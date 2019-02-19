@@ -7,14 +7,12 @@ import (
 	"testing"
 )
 
-func TestXMSS(t *testing.T) {
-	params := SHA2_16_256
-
+func testXMSS(t *testing.T, params *Params) {
 	prv, pub := GenerateXMSSKeypair(params)
 
 	msg := make([]byte, 32)
 	rand.Read(msg)
-	m := make([]byte, int(params.SignBytes)+len(msg))
+	m := make([]byte, params.SignBytes()+len(msg))
 
 	initIndex := make([]byte, params.indexBytes)
 	copy(initIndex, (*prv)[:params.indexBytes])
@@ -42,4 +40,16 @@ func TestXMSS(t *testing.T) {
 	} else {
 		fmt.Println("XMSS signature updated the private key's index.")
 	}
+}
+
+func TestSHA2_10_256(t *testing.T) {
+	fmt.Println("Testing SHA2_10_256")
+	params := SHA2_10_256
+	testXMSS(t, params)
+}
+
+func TestSHA2_16_256(t *testing.T) {
+	fmt.Println("Testing SHA2_16_256")
+	params := SHA2_16_256
+	testXMSS(t, params)
 }
