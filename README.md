@@ -1,3 +1,5 @@
+![Dependency Status](https://david-dm.org/dwyl/esta.svg)
+
 # XMSS: eXtended Merkle Signature Scheme
 
 This project implements [RFC8391](https://tools.ietf.org/html/rfc8391), the eXtended Merkle Signature Scheme (XMSS), a hash-based digital signature system that can so far withstand known attacks using quantum computers. This repostiory contains code implementing the **single-tree** scheme, namely the following parameter sets (see [section 5.3.](https://tools.ietf.org/html/rfc8391#section-5.3) for reference):
