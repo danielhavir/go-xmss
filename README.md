@@ -1,4 +1,4 @@
-![Dependency Status](https://danielhavir.github.io/badges/04f9fc479ab2f30ebef5ee393801dd82/dependencies_none.svg) ![Tests Passing](https://danielhavir.github.io/badges/7b10a2ec99832a186dac8cc279a45d3e/tests_passing.svg)
+![Dependency Status](https://danielhavir.github.io/badges/04f9fc479ab2f30ebef5ee393801dd82/dependencies_none.svg) [![Build Status](https://travis-ci.org/danielhavir/go-xmss.svg?branch=master)](https://travis-ci.org/danielhavir/go-xmss) [![Go Report Card](https://goreportcard.com/badge/github.com/danielhavir/go-xmss)](https://goreportcard.com/report/github.com/danielhavir/go-xmss)
 
 # XMSS: eXtended Merkle Signature Scheme
 
