@@ -1,8 +1,8 @@
 package xmss
 
 import (
-	"bytes"
 	"crypto/rand"
+	"crypto/subtle"
 )
 
 // Section 4.1.5. Algorithm 8: ltree
@@ -268,7 +268,7 @@ func Verify(params *Params, m, signature []byte, pub PublicXMSS) (match bool) {
 	}
 
 	// Check if the root node equals the root node in the public key
-	if !bytes.Equal(root, pubRoot) {
+	if subtle.ConstantTimeCompare(root, pubRoot) == 0 {
 		// Zero the message
 		copy(m[params.signBytes:], make([]byte, msgLen))
 		match = false
