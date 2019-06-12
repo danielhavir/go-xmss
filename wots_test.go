@@ -3,7 +3,6 @@ package xmss
 import (
 	"bytes"
 	"crypto/rand"
-	"fmt"
 	"testing"
 )
 
@@ -17,6 +16,7 @@ func (a *address) initRandom() {
 }
 
 func TestWOTS(t *testing.T) {
+	t.Parallel()
 	// For WOTS+ tests, the parameter set doesn't matter since n, w and wlen are identical
 	params := SHA2_10_256
 	seed := make([]byte, params.n)
@@ -36,8 +36,6 @@ func TestWOTS(t *testing.T) {
 
 	if !bytes.Equal(pub1, pub2) {
 		t.Error("WOTS+ test failed. Public keys do not match")
-	} else {
-		fmt.Println("WOTS+ test successful.")
 	}
 
 }
