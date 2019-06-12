@@ -36,6 +36,10 @@ func TestXMSS(t *testing.T) {
 		if !Verify(params, m, sig, *pub) {
 			t.Error("XMSS test failed. Verification does not match")
 		}
+		sig[len(sig)-1] ^= 1
+		if Verify(params, m, sig, *pub) {
+			t.Error("XMSS test failed. Flipped bit did not invalidate")
+		}
 	})
 }
 
